@@ -10,7 +10,7 @@
 
 #Paquetes propios
 from calculodecobertura_capa_logica.orbit import visionArc, orbitTimes, propagateSat
-from calculodecobertura_capa_logica.objectives import getObjectives
+from calculodecobertura_capa_logica.objectives import searchObjetives
 from calculodecobertura_capa_presentacion import close, checkValues, init
 from calculodecobertura_capa_exportacionDeDatos import exportObjectives, exportSatPositions
 
@@ -18,12 +18,6 @@ from calculodecobertura_capa_exportacionDeDatos import exportObjectives, exportS
 from astropy import units as u
 
 from tkinter import *
-from shapely.geometry.polygon import Polygon, LinearRing, Point, LineString
-import math
-import great_circle_calculator.great_circle_calculator as gcc
-
-import numpy as np
-
 
 #VARIABLES FIJAS
 #Órbita circular
@@ -52,10 +46,10 @@ FOV = 10.19
 #Ciclo de repetición del satélite en horas
 cycle = 24
 
-
-#Obtener coordenadas de las ciudades del mundo desde el excel
+#Obtener coordenadas de los objetivos desde el excel
 file = ""
 objectives_init = ""
+
 
 def get_parameters():
     global alt, inc, raan, FOV, file, objectives_init, cycle
@@ -109,125 +103,6 @@ def get_parameters():
 
         actual_cycle = "Current calculation period is " + str(cycle) + " hours, introduce new calculation period: "
         cycle2.configure(text = actual_cycle)
-
-def getPolygon(distance, londiff, d, polar_positions, times, i):
-    
-    special = False
-    arg = londiff * math.pi / (distance * 180)
-    angle = math.asin(arg)  * 180 / math.pi
-
-    pol_vertex = []
-    for ind in range(2):
-        p1 = [polar_positions[times[i]][1], polar_positions[times[i]][0]]
-        vert1 = gcc.point_given_start_and_bearing(p1, angle - 90, d * 1000)
-        vert2 = gcc.point_given_start_and_bearing(p1, angle + 90, d * 1000)            
-        
-        if vert1[0] < 0 and vert2[0] > 0:
-            special = True
-        elif vert2[0] < 0 and vert1[0] > 0:
-            special = True
-
-        vert1 = [vert1[1], vert1[0]]
-        vert2 = [vert2[1], vert2[0]]
-
-        pol_vertex.append(vert1)
-        pol_vertex.append(vert2)
-
-        i = i + 1
-    
-    r = LinearRing(pol_vertex)
-    frame = Polygon(r)
-
-    return frame, special, r
-
-def sph2cartesian(latitude, longitude):
-    R = 6371  # relative to centre of the earth
-    longitude = longitude * math.pi / 180
-    latitude = latitude * math.pi / 180
-
-    X = R * math.cos(longitude) * math.cos(latitude)
-    Y = R * math.sin(longitude) * math.cos(latitude)
-    
-    return X, Y
-
-def Distance_objSats(time, time2, sat_position, objectives, objective):
-    sat1 = np.array(sph2cartesian(sat_position[time][0], sat_position[time][1])) #lat, lon
-    sat2 = np.array(sph2cartesian(sat_position[time2][0], sat_position[time2][1]))
-
-    obj = np.array(sph2cartesian(objectives[objective][0], objectives[objective][1]))
-
-    Line = [sat1, sat2]
-
-    line = LineString(Line)
-    p = Point(obj)
-
-    return p.distance(line)
-
-def saveObjective(objectivesInFootprint, objectives, objective, time, sat_position, percentage_distance):
-    
-    objectivesInFootprint[objective] = []
-
-    for i in range(len(objectives[objective])):
-        objectivesInFootprint[objective].append(objectives[objective][i])
-    
-    objectivesInFootprint[objective].append(percentage_distance)
-    objectivesInFootprint[objective].append(sat_position[time])
-    objectivesInFootprint[objective].append(time)
-    
-    return objectivesInFootprint
-
-def objectivesInside(objectives, poly, objectivesInFootprint, time, time2, sat_position, special, corners, visualDistance):
-
-    for objective in objectives:
-        if objective not in objectivesInFootprint:
-            node = Point(objectives[objective][0], objectives[objective][1])
-            if poly.contains(node) and Distance_objSats(time, time2, sat_position, objectives, objective) <= visualDistance:
-                percentage_distance = (visualDistance - Distance_objSats(time, time2, sat_position, objectives, objective)) * 100 / visualDistance
-
-                if special:
-                    limits = corners.bounds
-                    if objectives[objective][0] > limits[0] and objectives[objective][0] < limits[2]:
-                        if (limits[3] - limits[1]) < 180:
-                            if objectives[objective][1] > limits[1] and objectives[objective][1] < limits[3]:
-                                objectivesInFootprint = saveObjective(objectivesInFootprint, objectives, objective, time, sat_position, percentage_distance)
-                        else:
-                            if objectives[objective][1] < limits[1] and objectives[objective][1] > limits[3]:
-                                objectivesInFootprint = saveObjective(objectivesInFootprint, objectives, objective, time, sat_position, percentage_distance)
-
-                else:
-                    objectivesInFootprint = saveObjective(objectivesInFootprint, objectives, objective, time, sat_position, percentage_distance)
-
-    return objectivesInFootprint
-
-def searchObjetives(times, polar_positions, visionDistance, objectivesInFootprint):
-
-    print("Searching objetives under satellite footprint...")
-
-    for i in range(len(times) - 1):
-        if(times[i][len(times[i]) - 1] == "0"):
-            print("Calculating at instant " + times[i])
-
-        lonDiff = polar_positions[times[i + 1]][1] - polar_positions[times[i]][1]
-
-        #Arreglar cambio de cuadrantes
-        if lonDiff < -180:
-            lonDiff = abs(polar_positions[times[i + 1]][1] + polar_positions[times[i]][1])
-        elif lonDiff > 180:
-            lonDiff = - abs(polar_positions[times[i + 1]][1] + polar_positions[times[i]][1])
-
-        lonDiff_distance = lonDiff * math.pi * Rtierra / 180
-
-        p1 = [polar_positions[times[i]][1], polar_positions[times[i]][0]]
-        p2 = [polar_positions[times[i + 1]][1], polar_positions[times[i + 1]][0]]
-        distance = gcc.distance_between_points(p1, p2) / 1000
-
-        #Obtener polígono de visión del sensor en el instante dado
-        poly, special, corners = getPolygon(distance, lonDiff_distance, visionDistance, polar_positions, times, i)
-
-        #Obtener ciudades en vista por el sensor en el instante dado
-        objectivesInFootprint = objectivesInside(objectives, poly, objectivesInFootprint, times[i], times[i + 1], polar_positions, special, corners, visionDistance)
-
-    return objectivesInFootprint
 
 exportSat = init()
 
@@ -316,8 +191,6 @@ alt, inc, raan, FOV, file, objectives_init, cycle = checkValues(alt, inc, raan, 
 polar_positions = {}
 objectivesInFootprint = {}
 
-objectives = getObjectives(file, objectives_init)
-
 visionDistance = visionArc(Rtierra, alt, FOV)
 
 #Propagamos el satélite en el tiempo
@@ -329,6 +202,6 @@ polar_positions = propagateSat(times, timeDelta, alt, inc, raan)
 if(exportSat):
     exportSatPositions(polar_positions)
 
-objectivesInFootprint = searchObjetives(times, polar_positions, visionDistance, objectivesInFootprint)
+objectivesInFootprint = searchObjetives(times, polar_positions, visionDistance, objectivesInFootprint, Rtierra, file, objectives_init)
 
 exportObjectives(objectivesInFootprint, objectives_init)
