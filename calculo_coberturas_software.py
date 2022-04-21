@@ -1,5 +1,5 @@
 #TFG Thales Alenia Space
-#Orbital Mechanics
+# Orbital Mechanics
 
 #Autoría: Belén Rosa Alonso
 #Titulación: INGENIERÍA EN TECNOLOGÍAS DE LA TELECOMUNICACION + INGENIERÍA AEROESPACIAL EN AERONAVEGACION
@@ -8,14 +8,16 @@
 
 #PAQUETES A IMPORTAR
 
+#Paquetes propios
+from calculodecobertura_capa_logica.prueba1 import visionArc
+from calculodecobertura_capa_presentacion import close, checkValues, init
+
+#Paquetes públicos
 from astropy import units as u
 
 from poliastro.bodies import Earth
 from poliastro.twobody import Orbit
 from poliastro.twobody.propagation import propagate
-#from poliastro.earth import EarthSatellite
-#from poliastro.ephem import Ephem
-#from poliastro.constants import J2000
 from astropy.coordinates import (
     GCRS,
     ITRS,
@@ -23,7 +25,6 @@ from astropy.coordinates import (
     SphericalRepresentation,
 )
 
-import tkinter as tk
 from tkinter import *
 from shapely.geometry.polygon import Polygon, LinearRing, Point, LineString
 import math
@@ -31,18 +32,18 @@ import great_circle_calculator.great_circle_calculator as gcc
 import pandas as pd
 import numpy as np
 import csv
-#import sys
+from sys import exit
 
 #VARIABLES FIJAS
 
-#Orbita circular
+#Órbita circular
 ecc = 0 * u.one
-
-#Ciclo de tiempo del que sacar datos (horas)
-cycle = 28
 
 #Radio de la Tierra (km)
 Rtierra = 6371
+
+#Tiempo de propagación [min]
+timeDelta = 3
 
 
 #VARIABLES CONFIGURABLES
@@ -53,22 +54,26 @@ alt = 562 * u.km
 #Inclinación orbital
 inc = 97.64 * u.deg
 
-"""#Hora local solar de paso por el nodo descendente
-LTDN_hour = "03"
-LTDN_minutes = "00"""
-
 #Right ascension of the ascendint node
 raan = 0 * u.deg
 
 #Campo de visión del instrumento ACT
 FOV = 10.19
 
-#Tiempo de propagación [min]
-timeDelta = 1
+#Ciclo de repetición del satélite en horas
+cycle = 24
+
 
 #Obtener coordenadas de las ciudades del mundo desde el excel
 file = ""
 objectives_init = ""
+
+def checkObjetives(obj, data):
+    if(not (obj in data)):
+        print("Not valid objectives characteristics to calculate, please try again inserting valid arguments.\n")
+        print("Make sure the characteristics are the column names from the input excel file.\n\nClosing program...")
+
+        exit()
 
 def getObjectives(excel, objectives):
     """
@@ -80,7 +85,13 @@ def getObjectives(excel, objectives):
     data = pd.read_excel(excel)
 
     for objective in objectives:
-        data_info[objective] = data[objective].to_list()
+        if(objective[0] == " "):
+            obj = objective[1:]   
+        else:
+            obj = objective
+
+        checkObjetives(obj, data)
+        data_info[objective] = data[obj].to_list()
         
     objs = {}
     
@@ -101,19 +112,19 @@ def get_parameters():
         altitude.configure(text = actual_altitude)
     
     if e2.get() != "":
-        inc = int(e2.get()) * u.deg
+        inc = float(e2.get()) * u.deg
 
         actual_inclination = "Current inclination is " + str(inc) + ", introduce new inclination: "
         inclination.configure(text = actual_inclination)
 
     if e3.get() != "":
-        raan = int(e3.get()) * u.deg
+        raan = float(e3.get()) * u.deg
 
         actual_raan = "Current right ascension of the ascendint node is " + str(raan) + ", introduce new raan: "
         raan2.configure(text = actual_raan)
 
     if e4.get() != "":
-        FOV = int(e4.get())
+        FOV = float(e4.get())
 
         actual_FOV = "Current FOV is " + str(FOV) + " degrees, introduce new FOV: "
         FOV2.configure(text = actual_FOV)
@@ -141,7 +152,7 @@ def get_parameters():
     if e7.get() != "":
         cycle = int(e7.get())
 
-        actual_cycle = "Current time for data is " + str(cycle) + " hours, introduce new range of time in hours: "
+        actual_cycle = "Current calculation period is " + str(cycle) + " hours, introduce new calculation period: "
         cycle2.configure(text = actual_cycle)
 
 def orbitTimes(cycle, timeDelta):
@@ -156,10 +167,7 @@ def orbitTimes(cycle, timeDelta):
     hour = time_init.split(':')[0]
     minute = time_init.split(':')[1]
 
-    day_number = 1
-
-    time = "Day " + str(day_number) + ": " + time_init
-    orbitTimes.append(time)
+    orbitTimes.append(time_init)
  
     for i in range(0, orbitRange, timeDelta):
         if timeDelta < 60:
@@ -188,31 +196,10 @@ def orbitTimes(cycle, timeDelta):
         elif int(hour) == 24:
             hour = "00"
 
-        time = "Day " + str(day_number) + ": " + str(hour) + ":" + str(minute)
+        time = str(hour) + ":" + str(minute)
         orbitTimes.append(time)
-
-        if int(hour) == 23 and int(minute) == 59:
-            day_number = day_number + 1
     
     return orbitTimes
-
-"""def LTANfromLTDN(LTDN_hour, LTDN_minutes, period):
-
-    time_minutes = period.to(u.min) / (2 * u.min)
-
-    LTAN_minutes = int(LTDN_minutes) + time_minutes
-    LTAN_hour = int(LTDN_hour)
-
-    if LTAN_minutes >= 60:
-        LTAN_minutes = LTAN_minutes - 60
-
-        if LTAN_hour < 23:
-            LTAN_hour = LTAN_hour + 1
-        else:
-            LTAN_hour = 0
-
-    ltan = (LTAN_hour + int(LTAN_minutes)/60) * u.hourangle
-    return ltan"""
 
 def _get_raw_coords(orb, t_deltas):
     """Generates raw orbit coordinates for given epochs
@@ -286,6 +273,8 @@ def propagateSat(times, orb):
     propagationTimeDelta_init = timeDelta * u.min
     propagationTimeDelta = 0 * u.min
 
+    print("Calculating satellite positions...")
+
     for time in times:
         polar_positions[time] = sphCoords(orb, propagationTimeDelta)
         propagationTimeDelta = propagationTimeDelta + propagationTimeDelta_init
@@ -301,6 +290,8 @@ def exportSatPositions(polar_positions):
 
     # Nombre del archivo final
     out_file = "./satellite_positions.csv"
+
+    print("Exporting satellite positions to " + out_file + " file...")
 
     data = []
     header = ["Time","lat","lon"]
@@ -323,19 +314,6 @@ def exportSatPositions(polar_positions):
     salida.writerows(data)
     del salida
     csvsalida.close()
-
-def visionArc(Rtierra, alt, FOV):
-
-    lado1 = Rtierra
-    lado2 = (alt / u.km) + Rtierra
-
-    angulo1 = FOV/2
-    angulo1_rad = (angulo1* math.pi)/180
-
-    angulo2 = 180 - (math.asin(lado2 * math.sin(angulo1_rad) / lado1) * 180/math.pi)
-
-    angulo3_rad = (180 - angulo1 - angulo2) * math.pi/180
-    return Rtierra * angulo3_rad
 
 def getPolygon(distance, londiff, d, polar_positions, times, i):
     
@@ -430,6 +408,7 @@ def exportObjectives(objectivesInFootprint, objectives):
     
     # Nombre del archivo final
     out_file = "./objectivesInFootprint.csv"
+    print("Exporting objectives under the satellite footprint at " + out_file + " file...")
 
     data = []
     header = []
@@ -468,6 +447,36 @@ def exportObjectives(objectivesInFootprint, objectives):
     del salida
     csvsalida.close()
 
+def searchObjetives(times, polar_positions, visionDistance, objectivesInFootprint):
+
+    print("Searching objetives under satellite footprint...")
+
+    for i in range(len(times) - 1):
+        print(times[i])
+        lonDiff = polar_positions[times[i + 1]][1] - polar_positions[times[i]][1]
+
+        #Arreglar cambio de cuadrantes
+        if lonDiff < -180:
+            lonDiff = abs(polar_positions[times[i + 1]][1] + polar_positions[times[i]][1])
+        elif lonDiff > 180:
+            lonDiff = - abs(polar_positions[times[i + 1]][1] + polar_positions[times[i]][1])
+
+        lonDiff_distance = lonDiff * math.pi * Rtierra / 180
+
+        p1 = [polar_positions[times[i]][1], polar_positions[times[i]][0]]
+        p2 = [polar_positions[times[i + 1]][1], polar_positions[times[i + 1]][0]]
+        distance = gcc.distance_between_points(p1, p2) / 1000
+
+        #Obtener polígono de visión del sensor en el instante dado
+        poly, special, corners = getPolygon(distance, lonDiff_distance, visionDistance, polar_positions, times, i)
+
+        #Obtener ciudades en vista por el sensor en el instante dado
+        objectivesInFootprint = objectivesInside(objectives, poly, objectivesInFootprint, times[i], times[i + 1], polar_positions, special, corners, visionDistance)
+
+    return objectivesInFootprint
+
+exportSat = init()
+
 #GRAPHICAL USER INTERFACE
 master = Tk()
 master.title('Coverage calculation software')
@@ -500,6 +509,13 @@ FOV2.pack()
 e4 = Entry(master)
 e4.pack()
 
+actual_cycle = "Current calculation period is " + str(cycle) + " hours, introduce new calculation period: "
+cycle2 = Label(master, text = actual_cycle)
+cycle2.pack()
+
+e7 = Entry(master)
+e7.pack()
+
 if file == "":
     actual_fileinput = "Currently there's not file with objectives, introduce file name (example: worldcities.xlsx): "
 else:
@@ -508,89 +524,61 @@ else:
 fileinput = Label(master, text = actual_fileinput)
 fileinput.pack()
 
+Label(master, text = "Make sure the file is in the same directory as the program").pack()
+
 e5 = Entry(master)
 e5.pack()
 
 if objectives_init == "":
-    actual_objectives = "Currently there're not objective's characteristics, introduce name, lat, lon and aditional characteristic: "
+    actual_objectives = "Currently there're not objective's characteristics, introduce name, lat, lon and aditional characteristics: "
 else:
     actual_objectives = "Current objective's characteristics are " + str(objectives_init) + ", introduce new objective's characteristics: "
 
 objectives2 = Label(master, text = actual_objectives)
 objectives2.pack()
 
-Label(master, text = "Objective's characteristics should be the column's title from input file and separated with commas, example: city_name,lat,lng,country").pack()
+Label(master, text = "Objective's characteristics should be the column's title from \ninput file and separated with commas, example: city_name,lat,lng,country").pack()
 
 e6 = Entry(master)
 e6.pack()
 
-actual_cycle = "Current time for data is " + str(cycle) + " hours, introduce new range of time in hours: "
-cycle2 = Label(master, text = actual_cycle)
-cycle2.pack()
-
-e7 = Entry(master)
-e7.pack()
-
 Label(master, text = "\n").pack()
 
-button = Button(master, text='Change parameters', width=25, command=get_parameters)
-button.pack()
+button_changeparam = Button(master, text='Change parameters', width=25, command=get_parameters)
+button_changeparam.pack()
 
-button2 = Button(master, text='Execute', width=25, command=master.destroy)
-button2.pack()
+button_exe = Button(master, text='EXECUTE', width=25, command=master.destroy, fg="green")
+button_exe.pack()
+
+button_exit = Button(master, text='EXIT', width=25, command=lambda: close(master), fg="red")
+button_exit.pack()
 
 Label(master, text = "\n").pack()
 
 mainloop()
 
+alt, inc, raan, FOV, file, objectives_init, cycle = checkValues(alt, inc, raan, FOV, file, objectives_init, cycle)
+
+polar_positions = {}
+objectivesInFootprint = {}
+
 objectives = getObjectives(file, objectives_init)
 
 visionDistance = visionArc(Rtierra, alt, FOV)
-
-"""ltdn = (int(LTDN_hour) + int(LTDN_minutes)/60) * u.hourangle
-
-#Creamos la órbita del satélite para obtener periodo
-sat_for_period = Orbit.heliosynchronous(Earth, a, ecc, inc, ltdn)
-
-ltan = LTANfromLTDN(LTDN_hour, LTDN_minutes, sat_for_period.period)"""
-
+print(visionDistance)
+exit()
 #Creamos la órbita del satélite final con hora correcta
-#sat = Orbit.heliosynchronous(Earth, a, ecc, inc, ltan)
 sat = Orbit.circular(Earth, alt, inc, raan)
 
 #Propagamos el satélite en el tiempo
 times = orbitTimes(cycle, timeDelta)
 
-polar_positions = {}
-
 polar_positions = propagateSat(times, sat)
-#print(polar_positions)
 
 #Exportamos a un excel los datos de posición del satélite
-#exportSatPositions(polar_positions)
+if(exportSat):
+    exportSatPositions(polar_positions)
 
-objectivesInFootprint = {}
-
-for i in range(len(times) - 1):
-    print(times[i])
-    lonDiff = polar_positions[times[i + 1]][1] - polar_positions[times[i]][1]
-
-    #Arreglar cambio de cuadrantes
-    if lonDiff < -180:
-        lonDiff = abs(polar_positions[times[i + 1]][1] + polar_positions[times[i]][1])
-    elif lonDiff > 180:
-        lonDiff = - abs(polar_positions[times[i + 1]][1] + polar_positions[times[i]][1])
-
-    lonDiff_distance = lonDiff * math.pi * Rtierra / 180
-
-    p1 = [polar_positions[times[i]][1], polar_positions[times[i]][0]]
-    p2 = [polar_positions[times[i + 1]][1], polar_positions[times[i + 1]][0]]
-    distance = gcc.distance_between_points(p1, p2) / 1000
-
-    #Obtener polígono de visión del sensor en el instante dado
-    poly, special, corners = getPolygon(distance, lonDiff_distance, visionDistance, polar_positions, times, i)
-
-    #Obtener ciudades en vista por el sensor en el instante dado
-    objectivesInFootprint = objectivesInside(objectives, poly, objectivesInFootprint, times[i], times[i + 1], polar_positions, special, corners, visionDistance)
+objectivesInFootprint = searchObjetives(times, polar_positions, visionDistance, objectivesInFootprint) #igual falta meter objectives¿?
 
 exportObjectives(objectivesInFootprint, objectives_init)

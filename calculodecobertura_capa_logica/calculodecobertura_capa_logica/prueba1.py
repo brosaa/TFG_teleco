@@ -1,6 +1,8 @@
+"""calculodecobertura_capa_logica - Capa lógica o de negocios del software de cálculo de cobertura de un satélite, Trabajo de Fin de Grado en ingeniería de tecnologías de las telecomunicaciones URJC 2022 de Belén Rosa Alonso"""
 
-import math
-from astropy import units as u
+__version__ = '0.0.1'
+__author__ = 'Belén Rosa Alonso <b.rosaa.2017@alumnos.urjc.es>'
+__all__ = []
 
 def visionArc(Rtierra, alt, FOV):
 
@@ -13,4 +15,5 @@ def visionArc(Rtierra, alt, FOV):
     angulo2 = 180 - (math.asin(lado2 * math.sin(angulo1_rad) / lado1) * 180/math.pi)
 
     angulo3_rad = (180 - angulo1 - angulo2) * math.pi/180
+
     return Rtierra * angulo3_rad
