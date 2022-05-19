@@ -23,4 +23,4 @@ Código ejecutado con versión python 3.9
 
 Antes de ejecutar, situar el terminal en los directorios calculodecobertura_capa_exportacionDeDatos\, calculodecobertura_capa_logica\ y calculodecobertura_capa_presentacion\ y ejecutar el comando  "pip install -e ." en cada uno de ellos.
 
-
+Programa principal a ejecutar: calculo_coberturas_software.py, los parámetros de entrada se introducen en la interfaz gráfica posterior. 
