@@ -3,6 +3,7 @@
 Herramienta software de cálculo de cobertura de un sensor desde satélite en una órbita específica y localización de objetivos en la superficie terrestre
 
 Autoría: Belén Rosa Alonso
+
 Grado: Doble grado en ingeniería en tecnologías de las telecomunicaciones e ingeniería aeroespacial en aeronavegación
 
 Software realizado con Thales Alenia Space como trabajo de fin de grado de ingeniería en tecnologías de las telecomunicaciones
