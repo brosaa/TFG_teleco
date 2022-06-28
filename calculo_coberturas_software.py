@@ -41,7 +41,7 @@ inc = 97.64 * u.deg
 raan = 0 * u.deg
 
 #Campo de visión del instrumento ACT
-FOV = 10.19
+FOV = 10.66
 
 #Ciclo de repetición del satélite en horas
 cycle = 24
@@ -55,7 +55,7 @@ def get_parameters():
     global alt, inc, raan, FOV, file, objectives_init, cycle
 
     if e1.get() != "":
-        alt = int(e1.get()) * u.km
+        alt = float(e1.get()) * u.km
 
         actual_altitude = "Current altitude is " + str(alt) + ", introduce new altitude: "
         altitude.configure(text = actual_altitude)
@@ -196,7 +196,7 @@ visionDistance = visionArc(Rtierra, alt, FOV)
 #Propagamos el satélite en el tiempo
 times = orbitTimes(cycle, timeDelta)
 
-polar_positions = propagateSat(times, timeDelta, alt, inc, raan)
+polar_positions = propagateSat(times, timeDelta, alt, inc, raan, Rtierra)
 
 #Exportamos a un excel los datos de posición del satélite
 if(exportSat):

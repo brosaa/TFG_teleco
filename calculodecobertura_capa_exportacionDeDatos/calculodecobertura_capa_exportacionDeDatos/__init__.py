@@ -9,7 +9,7 @@ from csv import writer
 def exportObjectives(objectivesInFootprint, objectives):
     
     # Nombre del archivo final
-    out_file = "./21042022objectivesInFootprint.csv"
+    out_file = "./objectivesInFootprint.csv"
     print("Exporting objectives under the satellite footprint at " + out_file + " file...")
 
     data = []
@@ -21,7 +21,7 @@ def exportObjectives(objectivesInFootprint, objectives):
     header.append("Visual precision (%)")
     header.append("Satellite position lat")
     header.append("Satellite position lon")
-    header.append("Time")
+    header.append("Time since AN")
 
     data.append(header)
 
@@ -57,12 +57,12 @@ def exportSatPositions(polar_positions):
     """
 
     # Nombre del archivo final
-    out_file = "./21042022satellite_positions.csv"
+    out_file = "./satellite_positions.csv"
 
     print("Exporting satellite positions to " + out_file + " file...")
 
     data = []
-    header = ["Time","lat","lon"]
+    header = ["Time since AN","lat","lon"]
     data.append(header)
 
 

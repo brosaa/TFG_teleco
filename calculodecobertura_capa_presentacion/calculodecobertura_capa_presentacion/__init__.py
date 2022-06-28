@@ -24,7 +24,7 @@ def checkValues(alt, inc, raan, FOV, file, objectives_init, cycle):
         abort = True 
     elif((cycle <= 0)):
         print("Not valid calculation time, please insert valid units for hours. \nClosing program...")
-        abort = True 
+        abort = True
     
     if(abort):
         exit()

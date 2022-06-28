@@ -31,11 +31,6 @@ def visionArc(Rtierra, alt, FOV):
 
     return Rtierra * angulo3_rad
 
-def createOrbit(Earth, alt, inc, raan):
-    sat = Orbit.circular(Earth, alt, inc, raan)
-
-    return sat
-
 def orbitTimes(cycle, timeDelta):
     """
     Función que devuelve una lista con los tiempos desde un instante inicial, hasta un rango de minutos después
@@ -79,8 +74,19 @@ def orbitTimes(cycle, timeDelta):
 
         time = str(hour) + ":" + str(minute)
         orbitTimes.append(time)
+
+    orbitTimes = orbitTimes[0:len(orbitTimes) - 1]
     
     return orbitTimes
+
+def createOrbit(Earth, alt, inc, raan, Rtierra):
+
+    a = ((alt / u.km) + Rtierra) * u.km
+
+    #sat = Orbit.circular(Earth, alt, inc, raan)
+    sat = Orbit.from_classical(Earth, a , 0 * u.one, inc, raan, 0 * u.deg, 0 * u.deg)
+   
+    return sat
 
 def _get_raw_coords(orb, t_deltas):
     """Generates raw orbit coordinates for given epochs
@@ -101,12 +107,14 @@ def _get_raw_coords(orb, t_deltas):
     """
 
     # Solve for raw coordinates and epochs
-    raw_xyz = propagate(orb, t_deltas)
+
+    raw_xyz = propagate(orb, t_deltas) 
+   
     raw_epochs = orb.epoch + t_deltas
 
     return raw_xyz, raw_epochs
 
-def _from_raw_to_ITRS(raw_xyz, raw_obstime):
+def _from_raw_to_ITRS(raw_xyz, raw_obstime, t_deltas):
     """Converts raw coordinates to ITRS ones
 
     Parameters
@@ -127,6 +135,7 @@ def _from_raw_to_ITRS(raw_xyz, raw_obstime):
     gcrs_xyz = GCRS(
         raw_xyz, obstime=raw_obstime, representation_type=CartesianRepresentation
     )
+
     itrs_xyz = gcrs_xyz.transform_to(ITRS(obstime=raw_obstime))
 
     return itrs_xyz       
@@ -141,26 +150,32 @@ def sphCoords(orb, t_deltas):
     """
     # Compute predicted grountrack positions
     raw_xyz, raw_obstime = _get_raw_coords(orb, t_deltas)
-    itrs_xyz = _from_raw_to_ITRS(raw_xyz, raw_obstime)
+    itrs_xyz = _from_raw_to_ITRS(raw_xyz, raw_obstime, t_deltas)
     itrs_latlon = itrs_xyz.represent_as(SphericalRepresentation)
 
     # Append predicted positions to map
     lat=itrs_latlon.lat.to(u.deg)/ u.deg
     lon=itrs_latlon.lon.to(u.deg)/ u.deg
+
+    lon = lon + 100.19
+    
+    if(lon > 360):
+        lon = lon - 360
+
     return [float(lat), float(lon) - 180]
 
-def propagateSat(times, timeDelta, alt, inc, raan):
+def propagateSat(times, timeDelta, alt, inc, raan, Rtierra):
     polar_positions = {}
     propagationTimeDelta_init = timeDelta * u.min
     propagationTimeDelta = 0 * u.min
     
     #Creamos la órbita del satélite final con hora correcta
-    orb = createOrbit(Earth, alt, inc, raan)
+    orb = createOrbit(Earth, alt, inc, raan, Rtierra)
 
     print("Calculating satellite positions...")
 
     for time in times:
         polar_positions[time] = sphCoords(orb, propagationTimeDelta)
         propagationTimeDelta = propagationTimeDelta + propagationTimeDelta_init
-    
+
     return polar_positions
