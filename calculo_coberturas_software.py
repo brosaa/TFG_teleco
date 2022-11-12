@@ -19,6 +19,10 @@ from astropy import units as u
 
 from tkinter import *
 
+from datetime import datetime
+
+import pandas as pd
+
 #VARIABLES FIJAS
 #Órbita circular
 ecc = 0 * u.one
@@ -32,22 +36,22 @@ timeDelta = 1
 
 #VARIABLES CONFIGURABLES
 #Altitud orbital
-alt = 562 * u.km
+alt = 274.35 * u.km
 
 #Inclinación orbital
-inc = 97.64 * u.deg
+inc = 96.58 * u.deg
 
 #Right ascension of the ascendint node
-raan = 0 * u.deg
+raan = 4.52 * u.deg
 
 #Campo de visión del instrumento ACT
-FOV = 10.66
+FOV = 15
 
 #Ciclo de repetición del satélite en horas
 cycle = 24
 
 #Obtener coordenadas de los objetivos desde el excel
-file = ""
+file = "renfe_estaciones.xlsx"
 objectives_init = ""
 
 
@@ -186,12 +190,12 @@ Label(master, text = "\n").pack()
 
 mainloop()
 
+instanteInicial = datetime.now()
+
 alt, inc, raan, FOV, file, objectives_init, cycle = checkValues(alt, inc, raan, FOV, file, objectives_init, cycle)
 
 polar_positions = {}
 objectivesInFootprint = {}
-
-visionDistance = visionArc(Rtierra, alt, FOV)
 
 #Propagamos el satélite en el tiempo
 times = orbitTimes(cycle, timeDelta)
@@ -202,6 +206,14 @@ polar_positions = propagateSat(times, timeDelta, alt, inc, raan, Rtierra)
 if(exportSat):
     exportSatPositions(polar_positions)
 
+visionDistance = visionArc(Rtierra, alt, FOV)
+
 objectivesInFootprint = searchObjetives(times, polar_positions, visionDistance, objectivesInFootprint, Rtierra, file, objectives_init)
 
 exportObjectives(objectivesInFootprint, objectives_init)
+
+instanteFinal = datetime.now()
+tiempo = instanteFinal - instanteInicial # Devuelve un objeto timedelta
+segundos = tiempo.seconds
+
+print("Tiempo de ejecución: " + str(segundos) + " segundos") 

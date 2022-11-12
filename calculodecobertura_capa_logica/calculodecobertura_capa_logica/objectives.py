@@ -12,7 +12,7 @@ import numpy as np
 
 def checkObjetives(obj, data):
 
-    if(not (obj in data)):
+    if(not (obj in data.columns)):
         
         print("Not valid objectives characteristics to calculate, please try again inserting valid arguments.\n")
         print("Make sure the characteristics are the column names from the input excel file.\n\nClosing program...")
