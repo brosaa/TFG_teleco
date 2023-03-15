@@ -24,3 +24,13 @@ Código ejecutado con versión python 3.9
 Antes de ejecutar, situar el terminal en los directorios calculodecobertura_capa_exportacionDeDatos\, calculodecobertura_capa_logica\ y calculodecobertura_capa_presentacion\ y ejecutar el comando  "pip install -e ." en cada uno de ellos.
 
 Programa principal a ejecutar: calculo_coberturas_software.py, los parámetros de entrada se introducen en la interfaz gráfica posterior. 
+
+## Docker
+Para construir la imagen ejecutar en un terminal linux desde el home del proyecto:
+   $docker build -t calculo-coberturas-software:latest -f Dockerfile .
+
+Para ejecutar la imagen contruida anteriormente:
+   $docker run -u=$(id -u $USER):$(id -g $USER) -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix:rw -it calculo-coberturas-software:latest
+
+
+
